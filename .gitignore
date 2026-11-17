@@ -218,3 +218,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ===== gduf-ai-assistant =====
+# 本地环境变量（真实 Key 不提交）
+.env
+.env.*
+!.env.example
+
+# 运行时数据与日志
+data/
+logs/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 测试与工具产物
+.pytest_cache/
+.trae/
+tests/live_report.md
