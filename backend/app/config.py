@@ -3,6 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]  # backend/
@@ -34,6 +35,12 @@ class Settings(BaseSettings):
     llm_max_retries: int = 2
     agent_max_tool_calls: int = 4
     agent_memory_window: int = 8
+
+    @field_validator("llm_base_url", "llm_api_key", "llm_model", "vision_model", mode="before")
+    @classmethod
+    def _strip_llm_fields(cls, value: object) -> object:
+        """去掉从 .env 复制时常见的首尾空格，避免污染请求头。"""
+        return value.strip() if isinstance(value, str) else value
 
     @property
     def llm_configured(self) -> bool:
