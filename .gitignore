@@ -237,3 +237,11 @@ logs/
 .pytest_cache/
 .trae/
 tests/live_report.md
+
+# Agent harness（仅本地使用，不提交）
+AGENTS.md
+feature_list.json
+progress.md
+init.sh
+init.ps1
+session-handoff.md
