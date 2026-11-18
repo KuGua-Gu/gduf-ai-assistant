@@ -264,6 +264,28 @@ def test_output_format_fallback(tmp_path: Path) -> None:
     assert not response.pending_actions
 
 
+class _TextOnlyLLM:
+    """模拟模型只返回追问文本、没有调用工具。"""
+
+    configured = True
+
+    def chat(self, *args: Any, **kwargs: Any) -> LLMResponse:
+        return LLMResponse(content="这笔具体花了多少元？", tool_calls=[])
+
+
+def test_text_only_clarification_keeps_record_intent(tmp_path: Path) -> None:
+    agent = build_orchestrator(tmp_path, llm=_TextOnlyLLM())
+    response = agent.chat("s-clarify", "帮我记一笔午饭")
+    assert response.intent.value == "record_expense"
+    assert not response.pending_actions
+
+
+def test_text_only_smalltalk_stays_chitchat(tmp_path: Path) -> None:
+    agent = build_orchestrator(tmp_path, llm=_TextOnlyLLM())
+    response = agent.chat("s-chat", "你好")
+    assert response.intent.value == "chitchat"
+
+
 class _ContextOverflowLLM:
     """模拟模型上下文超长。"""
 

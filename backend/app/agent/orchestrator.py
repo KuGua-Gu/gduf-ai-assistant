@@ -95,7 +95,7 @@ class AgentOrchestrator:
             if response is not None:
                 return response
 
-        return self._run_llm(sid, today, trace_id)
+        return self._run_llm(sid, today, trace_id, text)
 
     def confirm(self, session_id: str, actions: list[PendingAction]) -> tuple[int, int, str, str]:
         """确认卡片落库，返回 (成功数, 失败数, 回复, trace_id)。"""
@@ -252,7 +252,7 @@ class AgentOrchestrator:
 
     # ---------- 模型 + 工具循环 ----------
 
-    def _run_llm(self, sid: str, today: date, trace_id: str) -> ChatResponse:
+    def _run_llm(self, sid: str, today: date, trace_id: str, message: str = "") -> ChatResponse:
         messages = [
             {"role": "system", "content": build_system_prompt(today, WEEKDAYS_CN[today.weekday()])},
             *self.memory.context(sid),
@@ -270,7 +270,7 @@ class AgentOrchestrator:
 
             if not response.tool_calls:
                 reply = response.content.strip() or "我没太理解，可以再说得具体一点吗？"
-                return self._finish(sid, reply, self._infer_intent(tool_names, bool(pending_actions)), trace_id,
+                return self._finish(sid, reply, self._infer_intent(tool_names, bool(pending_actions), message), trace_id,
                                     pending_actions=pending_actions)
 
             messages.append(self._assistant_tool_message(response))
@@ -434,7 +434,7 @@ class AgentOrchestrator:
         }
 
     @staticmethod
-    def _infer_intent(tool_names: list[str], has_pending: bool) -> Intent:
+    def _infer_intent(tool_names: list[str], has_pending: bool, message: str = "") -> Intent:
         names = set(tool_names)
         if has_pending or "create_transactions" in names:
             return Intent.RECORD_EXPENSE
@@ -444,7 +444,24 @@ class AgentOrchestrator:
             return Intent.QUERY_STATS
         if names & {"set_budget", "get_budget_status"}:
             return Intent.MANAGE_BUDGET
+        # 模型未调用工具时（例如缺字段需要追问），仍按输入语义保留记账意图，
+        # 避免把「记一笔午饭」「房租 2500」误判为闲聊。
+        if AgentOrchestrator._looks_like_record(message):
+            return Intent.RECORD_EXPENSE
         return Intent.CHITCHAT
+
+    @staticmethod
+    def _looks_like_record(message: str) -> bool:
+        text = message.strip()
+        if not text:
+            return False
+        if any(keyword in text for keyword in ("记一笔", "记账", "帮我记")):
+            return True
+        if any(keyword in text for keyword in ("预算", "多少", "几笔", "统计", "明细", "哪类", "还剩", "剩下")):
+            return False
+        if parse_amount(text) is not None:
+            return True
+        return any(keyword in text for keyword in ("花了", "付了", "买了", "充了", "消费"))
 
     @staticmethod
     def _looks_like_new_topic(text: str) -> bool:
