@@ -171,7 +171,7 @@ System prompt 由 `agent/prompts.py` 的 `build_system_prompt(today, weekday)` �
 
 双模式：
 
-- **mock（离线）**：`pytest tests/test_agent.py --mock-llm`。使用 `RuleBasedLLM` 与内存业务桩，不联网、不写生产库；除 30 条用例外，还覆盖确认闭环、澄清合并、追问上限、OCR 草稿、越界拒绝、模型不可用、输出格式异常、上下文超长、工具执行失败、工具调用上限、工具参数校验、记忆压缩、API 契约。当前结果 43 passed、1 skipped。离线 30 条评测集当前通过率 30/30（100%），无失败用例；真实模型通过率与失败归因以 `tests/live_report.md` 为准。
+- **mock（离线）**：`pytest tests/test_agent.py --mock-llm`。使用 `RuleBasedLLM` 与内存业务桩，不联网、不写生产库；除 30 条用例外，还覆盖确认闭环、澄清合并、追问上限、OCR 草稿、越界拒绝、模型不可用、输出格式异常、上下文超长、工具执行失败、工具调用上限、工具参数校验、记忆压缩、API 契约。当前结果 53 passed、2 skipped（含 `test_contract.py` 的跨成员契约测试；成员 2 业务实现与真实模型评测项按设计跳过）。离线 30 条评测集当前通过率 30/30（100%），无失败用例；真实模型（glm-4.6v）实测意图通过率 30/30（100%），报告见 `tests/live_report.md`。
 - **live（真实模型）**：`pytest tests/test_agent.py --live`。需在 `.env` 配置 Key，逐条调用真实模型，按 `expected_intent` 与 `actual_intent` 统计意图一致率，并生成 `tests/live_report.md`（含模型名、通过率、逐条明细），阈值 50%。
 
 断言不只看意图：还会检查实际调用的工具名、草稿中的金额/类别/日期/备注/条数，以及澄清场景下缺失字段确实为 `null`（防止模型猜测）。
