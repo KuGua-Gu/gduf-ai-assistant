@@ -149,7 +149,7 @@
 
 | 类型 | 工具 | 命令 / 范围 |
 | --- | --- | --- |
-| Agent 离线回归 | pytest + RuleBasedLLM + 内存业务桩 | `pytest tests/test_agent.py --mock-llm`（30 条评测集 + 13 项链路/契约/兜底测试） |
+| Agent 离线回归 | pytest + RuleBasedLLM + 内存业务桩 | `pytest tests --mock-llm`（30 条评测集 + 23 项契约/链路/兜底测试） |
 | 真实模型评测 | pytest `--live` + LLMClient | 生成 `tests/live_report.md`，统计意图通过率 |
 | 业务层单测 | pytest + 临时 SQLite | 成员 2 补齐增删改查、统计、预算边界 |
 | 前端验证 | 手动验收清单 + `npm run build` | 确认卡片、图表、错误提示、响应式 |

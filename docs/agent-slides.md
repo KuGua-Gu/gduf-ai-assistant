@@ -65,21 +65,54 @@ if spec.write_action == "create":
 
 - 评测集 30 条：记账 10、查账 7、预算 4、澄清 4、闲聊 2、越界 3，覆盖相对日期、AA、多笔、缺字段与高风险请求。
 - 断言不只看意图，还核对实际工具名、金额 / 类别 / 日期 / 备注 / 条数，以及澄清场景缺失字段确实为 `null`。
-- 离线 `--mock-llm`：43 passed、1 skipped，不联网、不写生产库，可反复复现。
-- 真实模型 `--live`：逐条调用并生成 `tests/live_report.md`，按意图一致率统计，阈值 50%。
+- 离线 `--mock-llm`：53 passed、2 skipped，不联网、不写生产库，可反复复现。
+- 真实模型 `--live`：逐条调用并生成 `tests/live_report.md`，按意图一致率统计，阈值 50%；当前 glm-4.6v 实测 30/30（100%）。
 - 已知局限：规则模式依赖关键词、类别词表覆盖有限、记忆无向量检索、单例 + `session_id` 无多用户隔离；业务 SQLite、前端、真实 OCR、Docker 待成员 2/3/4 补齐。
 
-**建议配图**：用例分组柱状图 / 饼图；测试输出截图「43 passed, 1 skipped」；live 报告通过率表格。
+**建议配图**：用例分组柱状图 / 饼图；测试输出截图「53 passed, 2 skipped」；live 报告通过率表格。
+
+### 30 条评测集说明
+
+| 分组 | 条数 | 覆盖点 | 用例编号 |
+| --- | --- | --- | --- |
+| 记账 | 10 | 基础句、相对日期、AA、多笔、类别推断、固定日期 | `record-01` ~ `record-10` |
+| 查账 | 7 | 本月/上月/本周/近 7 天/今年、分类汇总、明细 | `query-01` ~ `query-07` |
+| 预算 | 4 | 类别预算、总额预算、余额查询、超支检查 | `budget-01` ~ `budget-04` |
+| 澄清 | 4 | 缺金额、模糊金额、缺类别、有场景无金额 | `clarify-01` ~ `clarify-04` |
+| 闲聊 | 2 | 问候、能力介绍 | `chat-01`、`chat-02` |
+| 越界 | 3 | 规避额度、伪造流水、贷款口子 | `refuse-01` ~ `refuse-03` |
+
+- 不只断言意图：还核对实际工具名、金额 / 类别 / 日期偏移 / 备注 / 条数；澄清场景要求缺失字段为 `null`。
+- 离线：`pytest tests/test_agent.py -q --mock-llm`；真实模型：`pytest tests/test_agent.py -q --live`（需 Key，生成 `tests/live_report.md`）。
+- 跨成员契约另由 `tests/test_contract.py` 覆盖；成员 2 的 `SqliteTransactionService` 交付后，真实实现用例会自动从 skip 转为执行。
 
 ---
+
+## 演示数据（可选，推荐）
+
+在空账本上运行一次，生成可复现的答辩数据：
+
+```bash
+python scripts/demo_seed.py
+# 后端不是 127.0.0.1:8000 时：
+python scripts/demo_seed.py --base http://127.0.0.1:8001
+```
+
+写入三笔（均为今天）：午饭 25（餐饮）、打车 32（交通）、看电影 45（娱乐），合计 102 元。
+
+- 「这个月餐饮花了多少」→ 25.00
+- 「这个月一共花了多少」→ 102.00
+- 预算演示仍以餐饮 25 元为准
+- 脚本通过 `chat → confirm` 走真实链路；重复运行会重复入账，只在新库执行一次
 
 ## 3 分钟演示脚本
 
 **演示前准备**
 
 - 启动：`cd backend` → `uvicorn app.main:app --reload --port 8000`；打开前端页面或 Swagger（`/docs`）。
-- 新建会话（或先调 `DELETE /api/chat/session/{id}`），确保从空账本开始。
+- 新建会话（或先调 `DELETE /api/chat/session/{id}`），确保从空账本开始；需要多条数据时先运行 `python scripts/demo_seed.py`。
 - 有 Key 用真实模型；无 Key 直接使用离线规则模式，话术固定、结果可复现。
+- 联调与排查细节见 [`docs/integration-checklist.md`](./integration-checklist.md)。
 
 | 时间 | 动作 | 输入 / 操作 | 预期输出与台词 |
 | --- | --- | --- | --- |

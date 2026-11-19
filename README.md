@@ -128,11 +128,14 @@ uvicorn app.main:app --reload --port 8000
 # 离线：不联网、不写生产库，使用规则模型与内存业务桩
 pytest tests/test_agent.py --mock-llm
 
+# 跨成员契约：API 字段、错误码与业务 Protocol
+pytest tests/test_contract.py --mock-llm
+
 # 真实模型评测：需在 .env 中配置 Key，结果写入 tests/live_report.md
 pytest tests/test_agent.py --live
 ```
 
-离线结果为 **43 passed, 1 skipped**（30 条评测集 + 13 项链路/契约/兜底测试通过，真实模型评测项按设计跳过）。`--live` 只跑 30 条评测集，按意图一致率统计并生成报告，通过率阈值 50%。
+离线结果为 **53 passed, 2 skipped**（30 条评测集 + 23 项契约/链路/兜底测试通过；真实模型评测项与成员 2 业务实现项按设计跳过）。`--live` 只跑 30 条评测集，按意图一致率统计并生成报告，通过率阈值 50%；最近一次 glm-4.6v 实测 30/30（100%）。
 
 ## 已验证功能
 
