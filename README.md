@@ -137,6 +137,11 @@ pytest tests/test_agent.py --live
 
 离线结果为 **53 passed, 2 skipped**（30 条评测集 + 23 项契约/链路/兜底测试通过；真实模型评测项与成员 2 业务实现项按设计跳过）。`--live` 只跑 30 条评测集，按意图一致率统计并生成报告，通过率阈值 50%；最近一次 glm-4.6v 实测 30/30（100%）。
 
+### CI 与手动 Live 评测
+
+- 每次 push `main` 或向 `main` 提 PR，GitHub Actions 自动运行离线回归，不消耗模型额度。
+- Live 评测为手动任务：仓库 **Settings → Secrets and variables → Actions** 添加 `LLM_API_KEY`（可选 `LLM_BASE_URL`、`LLM_MODEL`），然后在 **Actions → CI → Run workflow** 勾选 `live` 运行，报告作为 `live-report` 产物上传。
+
 ## 已验证功能
 
 | 功能 | 对应测试项 | 说明 |
