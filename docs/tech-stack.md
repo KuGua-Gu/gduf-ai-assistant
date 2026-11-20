@@ -48,10 +48,10 @@
 | 技术域 | 技术 | 版本 | 主责 / 协作 | 选型理由 |
 | --- | --- | --- | --- | --- |
 | 后端运行时与 Web 框架 | Python + FastAPI + Uvicorn | 3.11 / 0.115.6 / 0.34.0 | 成员 1 | 自带 OpenAPI 文档，Pydantic 校验开箱即用 |
-| 契约与配置 | Pydantic + pydantic-settings | 2.10.4 / 2.7.1 | 成员 1 主责，成员 2/3/4 复用模型 | 工具参数、接口契约、环境变量共用一套类型 |
+| 契约与配置 | Pydantic + pydantic-settings | 2.12.5 / 2.7.1 | 成员 1 主责，成员 2/3/4 复用模型 | 工具参数、接口契约、环境变量共用一套类型 |
 | 模型接入 | openai SDK（OpenAI 兼容） | 1.59.6 | 成员 1 | 一家 SDK 可切 DeepSeek / 智谱 / 通义 |
 | Agent 会话记忆 | SQLite + sqlite3（`agent_*` 表） | 3.40+ | 成员 1 | 与业务表解耦，摘要压缩成本低 |
-| 业务数据层 | SQLAlchemy + SQLite（WAL） | 2.0.36 | 成员 2 | 2.x 类型化写法，后续可平滑换 Postgres |
+| 业务数据层 | SQLAlchemy + SQLite（WAL） | 2.0.58 | 成员 2 | 2.x 类型化写法，后续可平滑换 Postgres |
 | 统计与预算 | SQL 聚合（GROUP BY）+ csv 标准库 | — | 成员 2 | 统计口径落在数据库，避免模型编数字 |
 | 前端框架与构建 | React + TypeScript + Vite | 18 / 5 / 6 | 成员 3 | 组件化 + 类型约束，构建产物可由 FastAPI 托管 |
 | 可视化与交互 | ECharts + axios + Tailwind | 5 / 1.x / 3 | 成员 3 | 分类占比、月度趋势现成组件 |
@@ -113,14 +113,14 @@
 
 | 表 | 负责 | 关键字段 |
 | --- | --- | --- |
-| `transactions` | 成员 2 | id、amount、category、merchant、occurred_at、note、source(text/ocr/manual)、created_at |
-| `budgets` | 成员 2 | id、month(YYYY-MM)、scope(total/类别)、amount、created_at，唯一键 (month, scope) |
+| `transactions` | 成员 2 | id、amount_cents、category、merchant、occurred_at、note、source(text/ocr/manual)、session_id、created_at |
+| `budgets` | 成员 2 | id、month(YYYY-MM)、scope(total/类别)、amount_cents、created_at，唯一键 (month, scope) |
 | `agent_sessions` | 成员 1 | id、summary、state_json、created_at、updated_at |
 | `agent_messages` | 成员 1 | id、session_id、role、content、created_at |
 
-- 索引：`transactions(occurred_at)`、`transactions(category)`、`agent_messages(session_id)`。
+- 索引：`transactions(occurred_at)`、`transactions(category)`、`transactions(category, occurred_at)`、`budgets(month)`、`agent_messages(session_id)`。
 - 连接：SQLite 开启 `journal_mode=WAL`、`busy_timeout=5000`、`foreign_keys=ON`。
-- 初始化：`backend/app/db/init_db.py`（成员 2）建表 + 导入示例账单 CSV；不引入 Alembic，避免小项目过度设计。
+- 初始化：`SqliteTransactionService` 构造时自动建表；`backend/app/db/init_db.py` 使用稳定 `seed_key` 幂等导入 `backend/samples/demo_transactions.csv`，不引入 Alembic。
 - 时间：一律存 ISO-8601 字符串或 DATE，业务时区固定 `Asia/Shanghai`。
 
 ## 9. 接口契约
@@ -134,7 +134,10 @@
 | DELETE | `/api/chat/session/{id}` | 新会话 |
 | GET | `/api/health` | 健康检查与模型配置状态 |
 | POST | `/api/ocr/upload` | 上传小票（成员 4） |
-| GET | `/api/stats`、`/api/transactions`、`/api/budgets` | 前端直连的查询接口（成员 2） |
+| GET | `/api/transactions` | 按日期、类别、关键词查询账单（成员 2） |
+| PATCH / DELETE | `/api/transactions/{id}` | 修改或删除账单（成员 2） |
+| GET | `/api/stats` | 按类别、日、月聚合消费（成员 2） |
+| GET / PUT | `/api/budgets` | 查询或设置月度预算（成员 2） |
 
 ## 10. 部署与运行时（成员 4）
 
@@ -159,7 +162,7 @@
 
 | 依赖 | 版本 | 说明 |
 | --- | --- | --- |
-| Python | 3.11.x | 不使用 3.12+ 的新语法，避免评审环境差异 |
+| Python | 3.11.x 部署基线 / 3.14.2 本地已验证 | 不使用 3.12+ 的新语法，避免评审环境差异 |
 | Node.js | 20 LTS | 仅前端构建需要 |
 | npm | 10.x | 锁文件提交 `package-lock.json` |
 | Docker | 24+ / compose v2 | 容器启动完整服务 |

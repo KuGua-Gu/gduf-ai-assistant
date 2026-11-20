@@ -5,11 +5,12 @@ python-multipart==0.0.20
 httpx==0.28.1
 
 # 数据校验与配置
-pydantic==2.10.4
+pydantic==2.12.5
 pydantic-settings==2.7.1
+tzdata==2026.6
 
 # 数据持久化
-SQLAlchemy==2.0.36
+SQLAlchemy==2.0.58
 
 # 大模型（OpenAI 兼容协议）
 openai==1.59.6
