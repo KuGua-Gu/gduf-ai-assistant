@@ -144,6 +144,101 @@
 
 ---
 
+## 业务 REST API
+
+业务接口由成员 2 提供，前端可直接调用；错误响应与 Agent 接口相同，统一为
+`{"code","message","trace_id"}`。
+
+### GET /api/transactions
+
+查询账单列表，按发生日期和 ID 倒序返回。
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `start_date` | string(date) | 否 | 起始日期，闭区间 |
+| `end_date` | string(date) | 否 | 结束日期，闭区间 |
+| `category` | string | 否 | 类别精确筛选 |
+| `keyword` | string | 否 | 匹配商户或备注 |
+| `limit` | int | 否 | 默认 50，范围 1~200 |
+
+响应：
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "amount": 25.0,
+      "category": "餐饮",
+      "merchant": "午饭",
+      "occurred_at": "2026-11-21",
+      "note": "",
+      "source": "text"
+    }
+  ],
+  "count": 1
+}
+```
+
+### PATCH /api/transactions/{transaction_id}
+
+局部修改账单，至少提供一个字段：
+
+```json
+{
+  "amount": 30.5,
+  "category": "交通",
+  "merchant": "地铁",
+  "occurred_at": "2026-11-21",
+  "note": "通勤"
+}
+```
+
+成功返回更新后的账单。账单不存在时返回 404 `TRANSACTION_NOT_FOUND`。
+
+### DELETE /api/transactions/{transaction_id}
+
+成功响应：
+
+```json
+{"deleted": true}
+```
+
+账单不存在时返回 404 `TRANSACTION_NOT_FOUND`。
+
+### GET /api/stats
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `start_date` | string(date) | 否 | 默认本月 1 日 |
+| `end_date` | string(date) | 否 | 默认今天 |
+| `group_by` | string | 否 | `category` / `day` / `month`，默认 `category` |
+| `category` | string | 否 | 类别筛选 |
+
+响应结构与 `TransactionService.get_stats` 一致，包含 `start`、`end`、
+`group_by`、`total` 和 `items[{key,amount,count}]`。
+
+### GET /api/budgets
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `month` | string | 否 | `YYYY-MM`，缺省为当前月 |
+
+响应包含 `month`、`total_budget`、`total_spent` 和
+`items[{scope,budget,spent,usage,status}]`。
+
+### PUT /api/budgets
+
+请求体：
+
+```json
+{"month": "2026-11", "scope": "total", "amount": 1500}
+```
+
+同一 `month + scope` 重复设置时覆盖旧预算。`scope` 可为 `total` 或类别名。
+
+---
+
 ## 错误码
 
 统一错误体为 `{"code","message","trace_id"}`，由 `backend/app/main.py` 的异常处理器生成。
@@ -157,6 +252,7 @@
 | `CONTEXT_OVERFLOW` | 500 | 模型报上下文超长（由 `LLM_UNAVAILABLE` 的错误详情含 `context` 转换而来） | 当前对话太长了，可以点「新会话」后继续，我会保留必要的记账上下文。 |
 | `SAFETY_VIOLATION` | 500 | 异常体系预留码 | 这类请求我无法协助。 |
 | `AGENT_ERROR` | 500 | 其他未细分的 Agent 异常（基类默认码） | 我这边出了点小问题，请稍后再试一次。 |
+| `TRANSACTION_NOT_FOUND` | 404 | 修改或删除的账单不存在 | 没有找到这笔账单。 |
 
 补充：
 

@@ -11,7 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.agent.errors import AgentError, LLMUnavailableError
+from app.api.budgets import router as budgets_router
 from app.api.chat import router as chat_router
+from app.api.errors import BusinessAPIError
+from app.api.stats import router as stats_router
+from app.api.transactions import router as transactions_router
 from app.config import get_settings
 
 logger = logging.getLogger("app.main")
@@ -41,6 +45,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(chat_router)
+    app.include_router(transactions_router)
+    app.include_router(stats_router)
+    app.include_router(budgets_router)
 
     @app.get("/api/health", tags=["system"], summary="健康检查")
     def health() -> dict[str, object]:
@@ -66,6 +73,21 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=422,
             content={"code": "VALIDATION_ERROR", "message": "请求参数不合法，请检查后重试。", "trace_id": trace_id},
+        )
+
+    @app.exception_handler(BusinessAPIError)
+    async def business_api_error_handler(request: Request, exc: BusinessAPIError) -> JSONResponse:
+        trace_id = uuid.uuid4().hex[:12]
+        logger.warning(
+            "trace=%s path=%s code=%s detail=%s",
+            trace_id,
+            request.url.path,
+            exc.code,
+            exc.message,
+        )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"code": exc.code, "message": exc.message, "trace_id": trace_id},
         )
 
     return app

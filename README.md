@@ -15,9 +15,9 @@
 
 | 层次 | 选型 |
 | --- | --- |
-| 语言 / 运行时 | Python 3.11 |
+| 语言 / 运行时 | Python 3.11 部署基线，本地已验证 3.14.2 |
 | Web 框架 | FastAPI 0.115 + Uvicorn 0.34 |
-| 数据校验 / 配置 | Pydantic 2.10 + pydantic-settings |
+| 数据校验 / 配置 | Pydantic 2.12 + pydantic-settings |
 | 存储 | SQLite（Agent 会话记忆已落地；业务账单表由成员 2 接入） |
 | 大模型 | OpenAI 兼容协议，可切换 DeepSeek / 智谱 GLM / 通义千问（openai SDK 1.59） |
 | 测试 | pytest 8.3 |
@@ -49,13 +49,30 @@
 │       │   └── errors.py           # 异常体系与兜底话术
 │       ├── api/
 │       │   ├── chat.py             # POST /api/chat、/confirm、DELETE session（成员 1）
+│       │   ├── business_schemas.py # 业务 REST 请求/响应模型（成员 2）
+│       │   ├── business_deps.py    # 业务 SQLite 服务依赖（成员 2）
+│       │   ├── transactions.py     # 账单查询、修改、删除接口（成员 2）
+│       │   ├── stats.py            # 消费统计接口（成员 2）
+│       │   ├── budgets.py          # 预算设置与查询接口（成员 2）
+│       │   ├── errors.py           # 业务 API 错误类型（成员 2）
 │       │   └── deps.py             # Agent / 业务服务装配与降级（成员 1）
+│       ├── db/
+│       │   ├── __init__.py         # 业务模型导出（成员 2）
+│       │   ├── models.py           # 账单与预算表结构（成员 2）
+│       │   └── init_db.py          # 示例账单幂等导入命令（成员 2）
 │       └── services/
 │           ├── contracts.py        # TransactionService / OcrService 协议（成员 1 定义）
+│           ├── transaction_service.py # SQLite 账单、统计与预算实现（成员 2）
 │           └── stubs.py            # 内存业务桩、OCR 桩（成员 1，供联调）
+├── backend/samples/
+│   └── demo_transactions.csv       # 示例账单数据（成员 2）
 ├── tests/
 │   ├── conftest.py                 # --mock-llm / --live 开关
 │   ├── test_agent.py               # 30 条评测集 + 链路测试
+│   ├── test_contract.py            # 跨成员 API 与业务 Protocol 契约
+│   ├── test_transaction_service.py # 业务持久化、统计与预算单测（成员 2）
+│   ├── test_business_api.py        # 业务 REST 接口与端到端持久化测试（成员 2）
+│   ├── test_seed_import.py         # 示例数据幂等导入测试（成员 2）
 │   └── agent_cases.json            # 30 条评测用例
 └── docs/
     ├── tech-stack.md               # 项目全技术栈与版本矩阵
@@ -64,11 +81,11 @@
     └── agent-slides.md             # PPT 大纲与演示脚本
 ```
 
-业务层 SQLite 实现、前端页面与真实 OCR 服务尚未提交，对应文件由成员 2/3/4 按 `docs/api-contract.md` 的契约补齐。
+前端页面与真实 OCR 服务尚未提交，对应文件由成员 3/4 按 `docs/api-contract.md` 的契约补齐。
 
 ## 环境搭建
 
-1. 安装 Python 3.11，确认版本：
+1. 安装 Python 3.11 或更高版本，确认版本：
 
    ```bash
    python --version
@@ -122,6 +139,44 @@ uvicorn app.main:app --reload --port 8000
 
 运行时会自动创建 `data/` 目录与 SQLite 文件（Agent 会话记忆表）。
 
+## 初始化示例数据
+
+示例账单位于 `backend/samples/demo_transactions.csv`，日期使用相对今天的天数偏移，
+保证演示数据始终覆盖当前时间附近。进入后端目录后执行：
+
+```bash
+cd backend
+python -m app.db.init_db
+```
+
+当前 Windows 虚拟环境可直接执行：
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m app.db.init_db
+```
+
+导入器使用 CSV 中的稳定 `seed_key` 作为幂等键。重复执行相同命令时，已经导入的
+示例账单会自动跳过，不会产生重复数据。首次执行预期新增 16 条：
+
+```text
+示例数据导入完成：新增 16 条，跳过 0 条，共 16 条。
+```
+
+再次执行预期：
+
+```text
+示例数据导入完成：新增 0 条，跳过 16 条，共 16 条。
+```
+
+可选参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `--csv PATH` | 指定其他示例 CSV 文件 |
+| `--db-path PATH` | 覆盖本次初始化使用的 SQLite 路径 |
+| `--anchor-date YYYY-MM-DD` | 固定相对日期基准，便于可复现演示 |
+
 ## 测试
 
 ```bash
@@ -135,7 +190,7 @@ pytest tests/test_contract.py --mock-llm
 pytest tests/test_agent.py --live
 ```
 
-离线结果为 **53 passed, 2 skipped**（30 条评测集 + 23 项契约/链路/兜底测试通过；真实模型评测项与成员 2 业务实现项按设计跳过）。`--live` 只跑 30 条评测集，按意图一致率统计并生成报告，通过率阈值 50%；最近一次 glm-4.6v 实测 30/30（100%）。
+离线结果为 **71 passed, 1 skipped**（30 条评测集 + Agent/契约/兜底测试 + 8 项 SQLite 业务单测 + 6 项业务 API 测试 + 3 项示例数据导入测试通过；真实模型评测项按设计跳过）。`--live` 只跑 30 条评测集，按意图一致率统计并生成报告，通过率阈值 50%；最近一次 glm-4.6v 实测 30/30（100%）。
 
 ### CI 与手动 Live 评测
 
@@ -155,11 +210,13 @@ pytest tests/test_agent.py --live
 | OCR 桩链路 | `test_ocr_draft_requires_review` | 图片走 OCR 生成草稿，缺日期时追问，补充后出卡并标记来源为 `ocr` |
 | 多轮记忆 | `test_memory_compaction` | 超过窗口两倍自动压缩摘要，上下文保留摘要 + 最近窗口消息 |
 | API 契约 | `test_api_contract` | chat → confirm → 查询 → 参数错误 422 → 清空会话全链路 |
+| SQLite 业务层 | `test_transaction_service.py` | 账单原子写入、闭区间查询、三类统计、金额精度、预算 UPSERT 与状态 |
+| 业务 REST API | `test_business_api.py` | 账单筛选/修改/删除、统计、预算、404/422 及 Agent 确认后端到端持久化 |
+| 示例数据导入 | `test_seed_import.py` | CSV 校验、重复执行幂等、跨日期基准幂等、非法 seed_key 拒绝 |
 | 异常兜底 | `test_llm_unavailable_fallback`、`test_output_format_fallback`、`test_context_overflow_fallback`、`test_tool_execution_error_fallback`、`test_tool_argument_validation`、`test_tool_call_limit` | 模型不可用/输出格式异常/上下文超长/写库失败均有可读话术；非法参数被拦截；工具调用总次数不超过 4 次 |
 
 ## 已知问题与未完成部分
 
-- **业务层 SQLite 未接入**：`app/api/deps.py` 会优先加载 `app.services.transaction_service.SqliteTransactionService`，该模块尚未提交，运行时自动降级为内存桩，重启后账单数据丢失。
 - **前端页面未开始**：聊天界面、确认卡片、统计图表（React + ECharts）尚未实现，目前只能通过 HTTP 接口或 Swagger 联调。
 - **真实 OCR 未接入**：`StubOcrService` 固定返回样例小票（沙县小吃 25.00 元），尚未对接真实识别服务与图片上传。
 - **Dockerfile 未完成**：仓库暂无容器化配置，当前仅支持本地 Python 运行。
