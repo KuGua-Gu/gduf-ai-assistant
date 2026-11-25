@@ -245,3 +245,12 @@ progress.md
 init.sh
 init.ps1
 session-handoff.md
+
+# Node / 前端（成员 3）
+node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+npm-debug.log*
+yarn-error.log*
+.pnpm-store/

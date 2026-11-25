@@ -21,7 +21,7 @@
 | 存储 | SQLite（Agent 会话记忆已落地；业务账单表由成员 2 接入） |
 | 大模型 | OpenAI 兼容协议，可切换 DeepSeek / 智谱 GLM / 通义千问（openai SDK 1.59） |
 | 测试 | pytest 8.3 |
-| 前端 | React + ECharts（成员 3 实现，尚未开始） |
+| 前端 | React 18 + TypeScript 5 + Vite 6 + ECharts 5 + Tailwind 3 + axios（成员 3 已交付） |
 | OCR | 成员 4 实现（当前为桩实现） |
 
 ## 目录结构
@@ -66,6 +66,11 @@
 │           └── stubs.py            # 内存业务桩、OCR 桩（成员 1，供联调）
 ├── backend/samples/
 │   └── demo_transactions.csv       # 示例账单数据（成员 2）
+├── frontend/                       # 前端工程（成员 3）
+│   ├── package.json                # 依赖与脚本（dev / build / typecheck）
+│   ├── vite.config.ts              # 端口 5173、/api 代理到后端、手动分包
+│   ├── README.md                   # 前端启动、页面与接口对照、自测清单
+│   └── src/                        # pages / components / api / types / lib / hooks
 ├── tests/
 │   ├── conftest.py                 # --mock-llm / --live 开关
 │   ├── test_agent.py               # 30 条评测集 + 链路测试
@@ -78,10 +83,13 @@
     ├── tech-stack.md               # 项目全技术栈与版本矩阵
     ├── api-contract.md             # 接口契约（面向成员 2/3/4）
     ├── agent-design.md             # Agent 设计文档（答辩用）
-    └── agent-slides.md             # PPT 大纲与演示脚本
+    ├── agent-slides.md             # PPT 大纲与演示脚本
+    ├── integration-checklist.md    # 端到端联调清单
+    └── handoff-member3.md          # 成员 3 前端交接文档
 ```
 
-前端页面与真实 OCR 服务尚未提交，对应文件由成员 3/4 按 `docs/api-contract.md` 的契约补齐。
+前端页面已由成员 3 交付（`frontend/`，见 [`frontend/README.md`](frontend/README.md)）；
+真实 OCR 服务与容器化仍待成员 4 按 `docs/api-contract.md` 与 `docs/tech-stack.md` 补齐。
 
 ## 环境搭建
 
@@ -137,7 +145,22 @@ uvicorn app.main:app --reload --port 8000
 {"status": "ok", "llm_configured": false, "llm_model": "deepseek-chat"}
 ```
 
-运行时会自动创建 `data/` 目录与 SQLite 文件（Agent 会话记忆表）。
+运行时会自动创建 `data/` 目录与 SQLite 文件（Agent 会话记忆表与业务账单表）。
+
+### 启动前端
+
+需要 Node.js 20+（首次执行先安装依赖）：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- 页面地址：<http://localhost:5173>
+- 开发服务器把 `/api` 代理到 `http://127.0.0.1:8000`，后端需先启动
+- 构建产物：`npm run build` → `frontend/dist`，按 `docs/tech-stack.md` 由 FastAPI 托管
+- 前端说明与自测清单：[`frontend/README.md`](frontend/README.md)
 
 ## 初始化示例数据
 
@@ -217,7 +240,8 @@ pytest tests/test_agent.py --live
 
 ## 已知问题与未完成部分
 
-- **前端页面未开始**：聊天界面、确认卡片、统计图表（React + ECharts）尚未实现，目前只能通过 HTTP 接口或 Swagger 联调。
+- **前端待补前端自动化测试**：聊天、账单、统计、预算四页已实现并可联调，但尚无 Vitest/Playwright 用例，回归依赖 `frontend/README.md` 的手工清单。
+- **前端与小票上传未联调**：`POST /api/ocr/upload` 由成员 4 提供，前端已做降级提示，接口就绪后需回归一次。
 - **真实 OCR 未接入**：`StubOcrService` 固定返回样例小票（沙县小吃 25.00 元），尚未对接真实识别服务与图片上传。
 - **Dockerfile 未完成**：仓库暂无容器化配置，当前仅支持本地 Python 运行。
 - **live 评测需自备 Key**：`--live` 依赖 `.env` 中的真实模型配置，未配置时测试自动跳过。
@@ -228,7 +252,7 @@ pytest tests/test_agent.py --live
 | --- | --- | --- | --- |
 | 成员 1（我） | Agent 核心 | 编排器、工具层、LLM 客户端、多轮记忆、Prompt、越界识别、异常兜底、HTTP 接口与契约定义、30 条评测集 | `backend/app/agent/*`、`backend/app/api/*`、`backend/app/main.py`、`backend/app/config.py`、`backend/app/services/contracts.py`、`tests/*`、本 README 与 `docs/*` |
 | 成员 2 | 业务与数据 | 账单/预算表设计，SQLite 落库，统计与预算 SQL，实现 `TransactionService` 协议；保证确认入账、查询统计、预算状态与契约一致 | `backend/app/services/transaction_service.py`（`SqliteTransactionService`）及数据初始化逻辑 |
-| 成员 3 | 前端交互 | React 聊天界面、确认卡片、账单列表与 ECharts 统计图；处理 `session_id`、`pending_actions` 回传与错误提示 | 前端工程与页面组件 |
+| 成员 3 | 前端交互 | React 聊天界面、确认卡片、账单列表与 ECharts 统计图；处理 `session_id`、`pending_actions` 回传与错误提示 | `frontend/`（工程、页面组件、`frontend/README.md`）与 `docs/handoff-member3.md` |
 | 成员 4 | OCR 与工程 | 图片上传与 OCR 识别，实现 `OcrService` 协议并输出 `OcrResult`；容器化与部署、演示环境保障 | `backend/app/services/ocr_service.py`（`ReceiptOcrService`）、Dockerfile 与部署配置 |
 
 ## API 与文档
@@ -237,6 +261,7 @@ pytest tests/test_agent.py --live
 - 接口契约（字段表、错误码、Tool 入参、业务 Protocol）：[`docs/api-contract.md`](docs/api-contract.md)
 - Agent 设计文档（架构、时序、Prompt、兜底、评测）：[`docs/agent-design.md`](docs/agent-design.md)
 - 答辩 PPT 大纲与演示脚本：[`docs/agent-slides.md`](docs/agent-slides.md)
+- 前端交接文档（成员 3 → 其他成员）：[`docs/handoff-member3.md`](docs/handoff-member3.md)
 - 在线接口文档：启动后访问 `http://127.0.0.1:8000/docs`
 
 ## 密钥安全说明
