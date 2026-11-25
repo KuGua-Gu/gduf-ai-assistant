@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-sand text-ink antialiased;
+    font-feature-settings: 'tnum' 0;
+    background-image:
+      radial-gradient(circle at 12% -10%, rgba(47, 143, 121, 0.1), transparent 45%),
+      radial-gradient(circle at 92% 4%, rgba(197, 106, 61, 0.09), transparent 40%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-jade-100 text-jade-900;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-jade-300 ring-offset-2 ring-offset-sand;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-paper shadow-card;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-jade-600 text-white hover:bg-jade-700 active:scale-[0.99];
+  }
+
+  .btn-ghost {
+    @apply btn border border-line bg-paper text-ink hover:border-jade-300 hover:text-jade-700;
+  }
+
+  .btn-danger {
+    @apply btn border border-clay-500/30 bg-clay-100/60 text-clay-600 hover:bg-clay-100;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink
+      placeholder:text-ink/35 focus:border-jade-300;
+  }
+
+  .label {
+    @apply text-xs font-medium uppercase tracking-wider text-ink/45;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+
+  .num {
+    @apply font-number tabular-nums;
+  }
+}
+
+/* 聊天区滚动条收窄，桌面端更安静 */
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: rgba(23, 26, 28, 0.16);
+  border-radius: 999px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
