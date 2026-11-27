@@ -140,7 +140,7 @@
    | 供应商 | `LLM_BASE_URL` | `LLM_MODEL` |
    | --- | --- | --- |
    | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
-   | 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` |
+   | 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-5.3-flash` |
    | 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
 
    其余参数（超时、重试、工具调用上限、记忆窗口）保持默认即可，含义见 `.env.example`。
@@ -295,7 +295,7 @@ pytest tests/test_ocr_upload.py tests/test_ocr_service.py --mock-llm
 pytest tests/test_agent.py --live
 ```
 
-离线结果为 **89 passed, 1 skipped**（30 条评测集 + Agent/契约/兜底测试 + 8 项 SQLite 业务单测 + 6 项业务 API 测试 + 3 项示例数据导入测试 + 6 项 OCR 上传测试 + 12 项 OCR 识别测试通过；真实模型评测项按设计跳过）。`--live` 只跑 30 条评测集，按意图一致率统计并生成报告，通过率阈值 50%；最近一次 glm-4.6v 实测 30/30（100%）。
+离线结果为 **89 passed, 1 skipped**（30 条评测集 + Agent/契约/兜底测试 + 8 项 SQLite 业务单测 + 6 项业务 API 测试 + 3 项示例数据导入测试 + 6 项 OCR 上传测试 + 12 项 OCR 识别测试通过；真实模型评测项按设计跳过）。`--live` 只跑 30 条评测集，按意图一致率统计并生成报告，通过率阈值 50%。
 
 ### CI 与手动 Live 评测
 
@@ -319,6 +319,7 @@ pytest tests/test_agent.py --live
 | SQLite 业务层 | `test_transaction_service.py` | 账单原子写入、闭区间查询、三类统计、金额精度、预算 UPSERT 与状态 |
 | 业务 REST API | `test_business_api.py` | 账单筛选/修改/删除、统计、预算、404/422 及 Agent 确认后端到端持久化 |
 | 示例数据导入 | `test_seed_import.py` | CSV 校验、重复执行幂等、跨日期基准幂等、非法 seed_key 拒绝 |
+| 真实模型联调 | 手动验证（`glm-5.3-flash`） | 「昨天打车 32 块」→ 交通 32.00 元确认卡片；「这个月交通花了多少」→ 32.00 元，数字来自 SQL |
 | 异常兜底 | `test_llm_unavailable_fallback`、`test_output_format_fallback`、`test_context_overflow_fallback`、`test_tool_execution_error_fallback`、`test_tool_argument_validation`、`test_tool_call_limit` | 模型不可用/输出格式异常/上下文超长/写库失败均有可读话术；非法参数被拦截；工具调用总次数不超过 4 次 |
 
 ## 已知问题与未完成部分
