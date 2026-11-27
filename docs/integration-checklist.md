@@ -117,18 +117,26 @@ curl.exe -X POST http://127.0.0.1:8000/api/chat \
 
 ## 5. 链路 D：OCR 小票
 
-**前置**：成员 4 提供图片上传方式并获得 `image_id`（本仓库不提供上传接口）。
+**前置**：成员 4 已提供 `POST /api/ocr/upload`（`multipart/form-data`，字段 `file`，JPG/PNG/WEBP，默认上限 10MB），返回 `image_id`；未配置 `VISION_API_KEY` 时识别退回桩实现（固定样例）。
 
-**请求**
+**请求 1：上传图片**
+
+```bash
+curl.exe -X POST http://127.0.0.1:8000/api/ocr/upload -F "file=@backend/samples/receipts/receipt-01.png"
+# → {"image_id":"cf30d2f6...","filename":"cf30d2f6....png","size":19561,"content_type":"image/png"}
+```
+
+**请求 2：让 Agent 识别**
 
 ```bash
 curl.exe -X POST http://127.0.0.1:8000/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"message":"识别这张小票","image_id":"<image_id>"}'
+  -d '{"message":"识别这张小票","image_id":"<上一步的 image_id>"}'
 ```
 
 **预期**
 
+- 上传成功返回 32 位 `image_id`；类型/大小不合法时返回 415 / 413，错误体与契约一致
 - `pending_actions[0].draft.source = "ocr"`，`confidence` 来自 `OcrResult`
 - 字段缺失时先追问，`needs_review` 标出缺失字段
 - 识别异常时返回可读话术，不出现 500
@@ -136,15 +144,19 @@ curl.exe -X POST http://127.0.0.1:8000/api/chat \
 
 **通过标准**
 
+- [ ] 上传 1 张样例小票能拿到 `image_id`
 - [ ] 真实 OCR 与桩结果可区分（商户/金额来自图片）
 - [ ] 低置信度时前端提示用户核对
 - [ ] `image_id` 为空或服务未注册时有降级提示
 
 **排查点**
 
-- 返回桩数据「沙县小吃 25 元」：`ReceiptOcrService` 未导入成功，查看启动日志 warning
-- 上传后 404：确认 OCR 服务地址与前端上传接口
+- 返回桩数据「沙县小吃 25 元」：`VISION_API_KEY` 未配置，或 `ReceiptOcrService` 导入失败（看启动日志 warning）
+- 上传 415：扩展名不是 jpg/png/webp，或文件头不是图片
+- 上传 413：超过 `OCR_MAX_BYTES`（默认 10MB）
+- 上传后 chat 报「图片不存在或已过期」：`image_id` 拼错，或 `OCR_UPLOAD_DIR` 与上传时不一致
 - 字段全空：检查 `OcrResult` 字段名是否与契约一致
+- 日期为空：小票没印日期，走澄清让用户补充即可
 
 ## 6. 失败排查速查
 

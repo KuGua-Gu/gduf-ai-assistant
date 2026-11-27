@@ -14,6 +14,7 @@ from app.agent.errors import AgentError, LLMUnavailableError
 from app.api.budgets import router as budgets_router
 from app.api.chat import router as chat_router
 from app.api.errors import BusinessAPIError
+from app.api.ocr import router as ocr_router
 from app.api.stats import router as stats_router
 from app.api.transactions import router as transactions_router
 from app.config import get_settings
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(transactions_router)
     app.include_router(stats_router)
     app.include_router(budgets_router)
+    app.include_router(ocr_router)
 
     @app.get("/api/health", tags=["system"], summary="健康检查")
     def health() -> dict[str, object]:

@@ -144,6 +144,45 @@
 
 ---
 
+## POST /api/ocr/upload
+
+上传小票/支付截图，返回后续 `/api/chat` 使用的 `image_id`（成员 4 提供）。
+
+请求：`multipart/form-data`
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `file` | file | 是 | JPG / PNG / WEBP，默认上限 10MB（`OCR_MAX_BYTES`） |
+
+响应：
+
+```json
+{
+  "image_id": "cf30d2f6d58d43948fec36f8e61a14d6",
+  "filename": "cf30d2f6d58d43948fec36f8e61a14d6.png",
+  "size": 208,
+  "content_type": "image/png"
+}
+```
+
+说明：
+
+- `image_id` 为 32 位十六进制字符串，原样放进 `POST /api/chat` 的 `image_id` 字段；
+- 文件保存在 `OCR_UPLOAD_DIR`（默认 `data/uploads/`），不入 Git；
+- 服务端会校验扩展名与文件头（拦截"改后缀"的假图片），前端仍应限制类型与大小。
+
+错误码：
+
+| code | HTTP | 场景 | 返回给用户的 message |
+| --- | --- | --- | --- |
+| `INVALID_FILE_TYPE` | 415 | 扩展名不支持，或文件头不是图片 | 只支持 JPG/PNG/WEBP 格式的小票图片。 |
+| `FILE_TOO_LARGE` | 413 | 超过 `OCR_MAX_BYTES` | 图片不能超过 10 MB。 |
+| `EMPTY_FILE` | 422 | 上传内容为空 | 上传的图片是空的，请重新选择。 |
+
+上传成功后按下文「image_id → OCR 流程」生成草稿。
+
+---
+
 ## 业务 REST API
 
 业务接口由成员 2 提供，前端可直接调用；错误响应与 Agent 接口相同，统一为
@@ -263,7 +302,7 @@
 
 ## image_id → OCR 流程
 
-1. 前端先把小票/支付截图上传到 OCR 服务（成员 4 提供），拿到 `image_id`。本仓库不提供图片上传接口。
+1. 前端先把小票/支付截图上传到 `POST /api/ocr/upload`，拿到 `image_id`（见上文）。
 2. 调用 `POST /api/chat`，请求带 `image_id`，`message` 可写「识别这张小票」等说明。
 3. Orchestrator 在进入模型前直接调用 `OcrService.recognize(image_id)`。
 4. 识别结果转成 `TransactionDraft`：

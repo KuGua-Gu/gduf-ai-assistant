@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.deepseek.com/v1"
     llm_api_key: str = ""
     llm_model: str = "deepseek-chat"
+
+    # 视觉模型（小票识别；DeepSeek 文本模型不支持图片，需单独配置多模态模型）
+    vision_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    vision_api_key: str = ""
     vision_model: str = ""
 
     # 服务
@@ -30,13 +34,25 @@ class Settings(BaseSettings):
     timezone: str = "Asia/Shanghai"
     log_level: str = "INFO"
 
+    # OCR 上传
+    ocr_upload_dir: str = "data/uploads"
+    ocr_max_bytes: int = 10 * 1024 * 1024
+
     # Agent 行为
     llm_timeout_seconds: float = 30.0
     llm_max_retries: int = 2
     agent_max_tool_calls: int = 4
     agent_memory_window: int = 8
 
-    @field_validator("llm_base_url", "llm_api_key", "llm_model", "vision_model", mode="before")
+    @field_validator(
+        "llm_base_url",
+        "llm_api_key",
+        "llm_model",
+        "vision_base_url",
+        "vision_api_key",
+        "vision_model",
+        mode="before",
+    )
     @classmethod
     def _strip_llm_fields(cls, value: object) -> object:
         """去掉从 .env 复制时常见的首尾空格，避免污染请求头。"""
@@ -52,6 +68,18 @@ class Settings(BaseSettings):
     def resolved_db_path(self) -> Path:
         path = Path(self.db_path)
         return path if path.is_absolute() else REPO_ROOT / path
+
+    @property
+    def resolved_upload_dir(self) -> Path:
+        """OCR 上传目录，相对路径基于仓库根目录解析。"""
+        path = Path(self.ocr_upload_dir)
+        return path if path.is_absolute() else REPO_ROOT / path
+
+    @property
+    def vision_configured(self) -> bool:
+        """是否配置了可用的视觉模型（Key 与模型名都不为空）。"""
+        key = self.vision_api_key.strip()
+        return bool(key) and not key.startswith("sk-your") and bool(self.vision_model.strip())
 
 
 @lru_cache
