@@ -1,0 +1,50 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke:
+    name: Build image and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t gduf-ai-assistant:ci .
+
+      - name: Start container
+        run: |
+          docker run -d --name app -p 8000:8000 gduf-ai-assistant:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/health -o health.json; then
+              break
+            fi
+            sleep 2
+          done
+          cat health.json
+          python -c "import json; d=json.load(open('health.json')); assert d['status']=='ok', d; print('health ok')"
+
+      - name: Upload endpoint smoke
+        run: |
+          curl -fsS -X POST http://127.0.0.1:8000/api/ocr/upload \
+            -F "file=@backend/samples/receipts/receipt-01.png" -o upload.json
+          cat upload.json
+          python -c "import json; d=json.load(open('upload.json')); assert len(d['image_id'])==32, d; print('upload ok', d['image_id'])"
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs app
