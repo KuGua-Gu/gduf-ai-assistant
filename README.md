@@ -132,7 +132,7 @@
    | `LLM_MODEL` | 模型名称 |
    | `VISION_API_KEY` | 视觉模型 Key（OCR 用；DeepSeek 文本模型不支持图片） |
    | `VISION_BASE_URL` | 视觉模型 OpenAI 兼容地址 |
-   | `VISION_MODEL` | 视觉模型名，如 `glm-4v-flash`、`qwen-vl-plus` |
+   | `VISION_MODEL` | 视觉模型名，如 `glm-5.3-flash`、`qwen-vl-plus` |
    | `OCR_MAX_BYTES` | 上传图片大小上限，默认 10MB |
 
    三家供应商可直接照抄模板中的组合：
@@ -295,7 +295,7 @@ pytest tests/test_ocr_upload.py tests/test_ocr_service.py --mock-llm
 pytest tests/test_agent.py --live
 ```
 
-离线结果为 **88 passed, 1 skipped**（30 条评测集 + Agent/契约/兜底测试 + 8 项 SQLite 业务单测 + 6 项业务 API 测试 + 3 项示例数据导入测试 + 6 项 OCR 上传测试 + 11 项 OCR 识别测试通过；真实模型评测项按设计跳过）。`--live` 只跑 30 条评测集，按意图一致率统计并生成报告，通过率阈值 50%；最近一次 glm-4.6v 实测 30/30（100%）。
+离线结果为 **89 passed, 1 skipped**（30 条评测集 + Agent/契约/兜底测试 + 8 项 SQLite 业务单测 + 6 项业务 API 测试 + 3 项示例数据导入测试 + 6 项 OCR 上传测试 + 12 项 OCR 识别测试通过；真实模型评测项按设计跳过）。`--live` 只跑 30 条评测集，按意图一致率统计并生成报告，通过率阈值 50%；最近一次 glm-4.6v 实测 30/30（100%）。
 
 ### CI 与手动 Live 评测
 
@@ -313,7 +313,7 @@ pytest tests/test_agent.py --live
 | 澄清追问 | `clarify-01` ~ `clarify-04`、`test_clarification_merges_previous_draft`、`test_clarification_limit` | 缺字段逐项追问，补充信息合并进草稿，同一字段超过两轮给出固定引导 |
 | 越界拒绝 | `refuse-01` ~ `refuse-03`、`test_safety_refusal_has_no_tool_call` | 套现、伪造流水、贷款口子等请求不进入模型，直接拒绝且不产生待确认动作 |
 | OCR 上传 | `test_ocr_upload.py` | 上传返回 `image_id`、扩展名/文件头/大小校验、空文件拒绝 |
-| OCR 识别 | `test_ocr_service.py`、`test_ocr_draft_requires_review` | JSON/代码块解析、脏输出重试、字段规范化、模型报错降级、无 Key 退回桩、缺日期追问后出卡 |
+| OCR 识别 | `test_ocr_service.py`、`test_ocr_draft_requires_review` | JSON/代码块解析、脏输出与空响应重试、字段规范化、模型报错降级、无 Key 退回桩、缺日期追问后出卡；合成 10 张评测 10/10 三项全对 |
 | 多轮记忆 | `test_memory_compaction` | 超过窗口两倍自动压缩摘要，上下文保留摘要 + 最近窗口消息 |
 | API 契约 | `test_api_contract` | chat → confirm → 查询 → 参数错误 422 → 清空会话全链路 |
 | SQLite 业务层 | `test_transaction_service.py` | 账单原子写入、闭区间查询、三类统计、金额精度、预算 UPSERT 与状态 |

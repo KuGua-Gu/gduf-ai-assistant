@@ -72,8 +72,13 @@ def test_ocr_service_rejects_unknown_image(settings: Settings) -> None:
         service.recognize("0123456789abcdef0123456789abcdef")
 
 
-def test_ocr_service_falls_back_to_stub_without_vision_key(settings: Settings) -> None:
+def test_ocr_service_falls_back_to_stub_without_vision_key(tmp_path: Path) -> None:
     """未配置视觉模型时退回桩结果，保证无 Key 也能演示。"""
+    settings = Settings(
+        ocr_upload_dir=str(tmp_path / "uploads"),
+        vision_api_key="",
+        vision_model="",
+    )
     settings.resolved_upload_dir.mkdir(parents=True, exist_ok=True)
     image_id = "0123456789abcdef0123456789abcdef"
     (settings.resolved_upload_dir / f"{image_id}.png").write_bytes(PNG_BYTES)

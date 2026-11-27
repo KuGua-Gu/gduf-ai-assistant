@@ -102,6 +102,21 @@ def test_recognize_retries_after_bad_output(tmp_path: Path) -> None:
     assert client.completions.calls == 2
 
 
+def test_recognize_retries_after_empty_response(tmp_path: Path) -> None:
+    service, client = _service(
+        tmp_path,
+        [
+            "",
+            '{"amount": 88, "merchant": "空响应重试", "occurred_at": "2026-11-25", "confidence": 0.9}',
+        ],
+    )
+
+    result = service.recognize(IMAGE_ID)
+
+    assert result.amount == 88.0
+    assert client.completions.calls == 2
+
+
 def test_recognize_fails_after_two_bad_outputs(tmp_path: Path) -> None:
     service, client = _service(tmp_path, ["无法识别", "还是无法识别"])
 

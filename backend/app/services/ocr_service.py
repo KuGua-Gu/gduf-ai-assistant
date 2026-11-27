@@ -105,11 +105,13 @@ class ReceiptOcrService:
         return self._client
 
     def _recognize_with_vision(self, image_id: str, path: Path) -> OcrResult:
-        """调用视觉模型识别小票，失败重试一次后抛 ``OcrError``。"""
+        """调用视觉模型识别小票；空响应与脏输出分别重试，仍失败抛 ``OcrError``。"""
         messages = self._build_messages(path)
         last_error: Exception | None = None
+        parse_failures = 0
+        empty_retries = 0
 
-        for attempt in (1, 2):
+        for attempt in (1, 2, 3):
             try:
                 response = self._get_client().chat.completions.create(
                     model=self.settings.vision_model,
@@ -122,6 +124,16 @@ class ReceiptOcrService:
                 raise OcrError("视觉模型暂时不可用，请稍后再试或手动输入") from exc
 
             content = (response.choices[0].message.content or "").strip()
+            if not content:
+                # 模型偶发返回空内容（限流/抖动），补一次提示后重试
+                last_error = ValueError("空响应")
+                logger.warning("image_id=%s ocr empty response (attempt=%d)", image_id, attempt)
+                if empty_retries >= 1:
+                    break
+                empty_retries += 1
+                messages = [*messages, {"role": "user", "content": "请直接输出约定的 JSON，不要返回空内容。"}]
+                continue
+
             try:
                 payload = self._extract_json(content)
                 result = self._to_result(payload)
@@ -135,7 +147,10 @@ class ReceiptOcrService:
                 return result
             except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
                 last_error = exc
+                parse_failures += 1
                 logger.warning("image_id=%s ocr parse failed (attempt=%d): %s", image_id, attempt, exc)
+                if parse_failures >= 2:
+                    break
                 messages = [
                     *messages,
                     {"role": "assistant", "content": content or "（空响应）"},
