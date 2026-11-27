@@ -32,15 +32,9 @@ npm run typecheck    # 仅类型检查
 因此路由使用 **hash 模式**（`#/chat`、`#/transactions`、`#/stats`、`#/budgets`），
 不需要服务端做 history fallback。
 
-```python
-# 成员 1 在 backend/app/main.py 增加（需在路由注册之后，且仅当 dist 存在时）
-from pathlib import Path
-from fastapi.staticfiles import StaticFiles
-
-dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
-if dist.exists():
-    app.mount("/", StaticFiles(directory=dist, html=True), name="frontend")
-```
+`backend/app/main.py` 已实现该挂载（目录存在才挂，且放在 `create_app()` 末尾，避免 `/` 抢掉 `/api/*` 路由），
+因此 `npm run build` 之后直接起 FastAPI，访问 <http://127.0.0.1:8000/> 就是完整页面；
+未构建时后端仍可正常启动，只是 `/` 返回 404。
 
 开发期不走托管：Vite 代理 `/api`，因此前端不需要处理跨域（后端已开 CORS 全放通）。
 
@@ -106,7 +100,9 @@ frontend/
   页面只处理一种错误形状，错误条同时展示 `code` 与 `trace_id` 便于按契约排查。
 - `5xx` / 网络错误显示「重试」按钮（对话页会重发上一条消息，列表页重新拉取）。
 - `503 LLM_UNAVAILABLE`：提示先手动记账；`422`：提示检查参数；`404 TRANSACTION_NOT_FOUND`：提示账单已不存在。
-- OCR 上传接口返回 404/405/501 时归为 `OCR_UNAVAILABLE`，提示「图片识别尚未接入」，并允许手动填写 `image_id`。
+- 小票上传对接 `POST /api/ocr/upload`（multipart 字段 `file`）：前端先校验 JPG/PNG/WEBP 与 10MB 上限，
+  服务端的 `INVALID_FILE_TYPE`(415) / `FILE_TOO_LARGE`(413) / `EMPTY_FILE`(422) 文案直接透传；
+  接口不可用或网络异常时才提示手动填写 `image_id` 兜底。
 
 ## 自测清单（对照 docs/integration-checklist.md）
 
@@ -133,4 +129,5 @@ frontend/
 | 接口 404 | `VITE_API_BASE` 被设成带 `/api/api` | 保持默认 `/api` |
 | 图表空白 | 该范围无数据，或切到了日/月维度 | 换范围；日/月维度看右侧趋势图 |
 | 刷新后对话消失 | 对话内容只存在前端内存，后端仅存消息记忆 | 属预期；账单/统计/预算来自数据库不受影响 |
-| 上传小票提示未接入 | 成员 4 的上传接口未提供 | 手动输入 `image_id`，或等 OCR 接口就绪 |
+| 上传小票返回 415/413 | 格式不是 JPG/PNG/WEBP，或超过 10MB | 换图或压缩后重试（前端已做同样的预校验） |
+| 识别结果总是「沙县小吃 25 元」 | 未配置 `VISION_API_KEY`，OCR 退回桩实现 | 配 `.env` 的视觉模型信息，或按桩数据演示 |

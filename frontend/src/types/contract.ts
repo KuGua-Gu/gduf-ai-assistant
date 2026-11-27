@@ -165,7 +165,10 @@ export interface BudgetResponse {
   amount: number
 }
 
-/** 成员 4 的 OCR 上传接口（POST /api/ocr/upload，multipart 字段名 file）。 */
+/** POST /api/ocr/upload 响应（multipart 字段名 file）。 */
 export interface OcrUploadResponse {
   image_id: string
+  filename?: string
+  size?: number
+  content_type?: string | null
 }

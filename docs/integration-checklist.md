@@ -178,5 +178,5 @@ curl.exe -X POST http://127.0.0.1:8000/api/chat \
 |  | B 查账统计 |  |  |  |
 |  | C 预算 |  |  |  |
 |  | D OCR |  |  |  |
-|  | 前端全流程 |  |  |  |
+| 2026-11-27 | 前端全流程 | 成员 3 | 通过（OCR 走桩数据） | pytest 89 passed；API 15 项 / UI 15 项自检全通过；`created=1`、`image_id` 32 位、`source=ocr` |
 |  | Docker 复跑 |  |  |  |

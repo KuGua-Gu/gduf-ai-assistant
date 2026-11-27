@@ -19,12 +19,17 @@
 | 统计页：类别占比环形图、日/月趋势柱状图、排行榜、时间维度切换 | ✅ 已交付 |
 | 预算页：按月查询、进度与 `normal/warning/exceeded` 配色、设置/覆盖预算 | ✅ 已交付 |
 | 错误处理：`{code,message,trace_id}` 统一映射、重试、断网提示 | ✅ 已交付 |
-| 小票上传（`/api/ocr/upload`） | ⚠️ 前端已写适配 + 降级，**接口未提供，未真实联调**（成员 4） |
+| 小票上传（`/api/ocr/upload`） | ✅ 已对接成员 4 的上传接口并联调（类型/大小预校验、错误码透传、失败兜底） |
 | 前端自动化测试（单测 / e2e） | ❌ 未做，仅手工 + headless Chrome 冒烟（见 6 节） |
 
-**本机验收证据**：后端 8010（离线规则模式）+ 构建产物静态托管 8091，Chrome headless 跑通
-「发消息 → 生成卡片 → 确认入账（created=1）→ 账单编辑/删除 → 统计切类别/日/月 → 预算设置 → 390px 移动视口」，
-`document.scrollWidth` 无横向溢出，页面无 console 报错。TypeScript 与 `vite build` 均通过。
+**本机验收证据**（最新一轮，后端 8010 离线规则 + FastAPI 托管 dist + 真实 Chrome）：
+- `pytest tests -q --mock-llm` → 89 passed, 1 skipped（含静态挂载后 `/api/health` 不被 `/` 吞掉）
+- `npm run build`（tsc + vite）通过；`/` 与 `/assets/*.js` 均 200
+- 接口链路 15 项全通过：文本记账 → 确认 `created=1`、非法上传 415、小票上传拿 `image_id`、
+  `image_id` → OCR 草稿 `source=ocr` → 确认入账、账单/统计（类别+按天）/预算 PUT+GET、清空会话
+- UI 15 项全通过（Chrome CDP 驱动）：卡片改金额 → 确认 → 已入账；账单页数据与金额正确；
+  统计 ECharts 渲染与「按天」切换；预算保存提示；切页后聊天记录保留；390px 无横向溢出
+- 未配置 `VISION_API_KEY`，OCR 走固定样例桩（沙县小吃 25.00 / 置信度 0.72）
 
 ---
 
@@ -103,7 +108,7 @@ if dist.exists():  # 前端未构建时不影响后端启动
 
 ## 5. 给成员 4（OCR 与工程）的交接
 
-### 5.1 前端已按下列规格预留上传接口
+### 5.1 上传接口（已就绪，前端已完成联调）
 
 - `POST /api/ocr/upload`，`multipart/form-data`，文件字段名 **`file`**
 - 成功响应：`{"image_id": "<string>"}`（也兼容 `imageId` 驼峰，但请优先用 `image_id`）
@@ -172,7 +177,7 @@ cd frontend && npm run build
 1. **未做前端自动化测试**：目前仅手工 + headless 冒烟。若后续要守住回归，建议
    Vitest + Testing Library 覆盖 `ConfirmCard`（回传结构）、`ChatPage`（卡片状态机），
    Playwright 覆盖「记一笔 → 确认 → 账单可见」。
-2. **OCR 上传未真实联调**：接口就绪后按 5.1 回归一次，删掉 `src/api/ocr.ts` 的降级分支。
+2. **OCR 真实识别待配 Key**：上传/识别/确认链路已联调通过（未配 `VISION_API_KEY` 时走固定样例桩），配置后需确认真实识别结果与 `confidence` 表现。
 3. **对话历史不持久**：刷新页面后聊天区清空（`session_id` 会保留，后端记忆仍在）。
    若答辩需要「刷新不丢」，可加 `GET /api/chat/messages`——**必须先加契约**，前端不自行假设。
 4. **无鉴权、无多用户**：单机演示定位，`session_id` 可被复用；对外部署前需加登录与数据隔离。
@@ -191,6 +196,19 @@ cd frontend && npm run build
 | `README.md`（修改） | 技术栈行、目录树、启动说明、已知问题、分工表：标记前端已交付 |
 | `docs/handoff-member3.md`（新增） | 本交接文档 |
 | `.gitignore`（修改） | 追加 `node_modules/`、`frontend/.env.local`、`.vercel` 等前端产物 |
+
+### 8.1 第二轮改动（OCR 联调 + 可交付形态）
+
+| 路径 | 说明 |
+| --- | --- |
+| `backend/app/main.py` | 末尾挂载 `frontend/dist`（存在才挂）；必须放在所有路由之后，否则 `/` 会吞掉 `/api/*` |
+| `Dockerfile` | 增加 `node:20-alpine` 构建阶段，产物复制到 `/app/frontend/dist` |
+| `frontend/src/api/ocr.ts` | 对接真实 `POST /api/ocr/upload`：`file` 字段、`{image_id,filename,size}`、类型/大小预校验、错误透传 |
+| `frontend/src/api/client.ts`、`types/contract.ts` | 补 `INVALID_FILE_TYPE` / `FILE_TOO_LARGE` / `EMPTY_FILE` 错误码与文案；上传响应补 `filename/size/content_type` |
+| `frontend/src/pages/ChatPage.tsx` | 上传 loading 态、文件名 + image_id 前 8 位展示、失败才显示手动输入兜底 |
+| `frontend/src/lib/{categories,format}.ts` | 用 PR #5 的原始实现替换 leader 分支里的「按调用点重写版」（两文件为 PR #5 因 `.gitignore` 的 `lib/` 规则漏提交） |
+| `.gitignore` | 由 leader 补 `!frontend/src/lib/`、`!frontend/src/lib/**` 例外；本分支沿用 |
+| `.github/workflows/frontend.yml` | 由 leader 新增的前端 typecheck + build CI；本分支沿用 |
 
 未改动任何后端代码、测试与契约字段；`frontend/dist` 已被 `.gitignore` 忽略，不进仓库。
 
