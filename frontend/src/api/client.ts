@@ -19,6 +19,9 @@ export type ApiErrorCode =
   | 'SAFETY_VIOLATION'
   | 'AGENT_ERROR'
   | 'TRANSACTION_NOT_FOUND'
+  | 'INVALID_FILE_TYPE'
+  | 'FILE_TOO_LARGE'
+  | 'EMPTY_FILE'
   | 'NETWORK_ERROR'
   | 'OCR_UNAVAILABLE'
 
@@ -54,6 +57,10 @@ const FALLBACK_MESSAGES: Record<string, string> = {
   SAFETY_VIOLATION: '这类请求我无法协助。',
   AGENT_ERROR: '服务出了点小问题，请稍后再试一次。',
   TRANSACTION_NOT_FOUND: '没有找到这笔账单。',
+  INVALID_FILE_TYPE: '只支持 JPG/PNG/WEBP 格式的小票图片。',
+  FILE_TOO_LARGE: '图片不能超过 10 MB。',
+  EMPTY_FILE: '上传的图片是空的，请重新选择。',
+  OCR_UNAVAILABLE: '图片上传没有成功，请重试或手动输入 image_id。',
 }
 
 export function toApiError(error: unknown): ApiError {

@@ -181,7 +181,7 @@ npm run dev
 
 - 页面地址：<http://localhost:5173>
 - 开发服务器把 `/api` 代理到 `http://127.0.0.1:8000`，后端需先启动
-- 构建产物：`npm run build` → `frontend/dist`，按 `docs/tech-stack.md` 由 FastAPI 托管
+- 构建产物：`npm run build` → `frontend/dist`；`backend/app/main.py` 会在该目录存在时自动挂载到 `/`，因此构建后只需起 FastAPI 即可打开完整页面
 - 前端说明与自测清单：[`frontend/README.md`](frontend/README.md)
 
 ## Docker 部署（推荐交付方式）
@@ -333,7 +333,7 @@ pytest tests/test_agent.py --live
 ## 已知问题与未完成部分
 
 - **前端待补自动化测试**：聊天、账单、统计、预算四页已实现并可联调，但尚无 Vitest/Playwright 用例，回归依赖 `frontend/README.md` 的手工清单。
-- **小票上传需联调回归**：`POST /api/ocr/upload` 已就绪（见 `docs/api-contract.md`），前端已做降级提示，接口对接后需回归一次。
+- **小票上传已联调**：前端已对接 `POST /api/ocr/upload`（预校验 JPG/PNG/WEBP 与 10MB 上限），上传 → 识别 → 确认链路已走通；配置 `VISION_API_KEY` 后为真实识别，未配置时退回固定样例桩。
 - **OCR 依赖外部视觉模型**：配置 `VISION_API_KEY` / `VISION_MODEL` 后走真实识别；未配置时自动退回 `StubOcrService`（固定样例，便于无 Key 演示），此时识别结果不来自上传图片。
 - **Docker 镜像待验证**：`Dockerfile` / `docker-compose.yml` 已提供，`.github/workflows/docker.yml` 会在 CI 中构建并对 `/api/health`、`/api/ocr/upload` 做冒烟；本机无 Docker 环境时以 CI 结果为准。
 - **live 评测需自备 Key**：`--live` 依赖 `.env` 中的真实模型配置，未配置时测试自动跳过。

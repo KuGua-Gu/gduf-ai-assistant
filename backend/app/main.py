@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import logging
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.agent.errors import AgentError, LLMUnavailableError
 from app.api.budgets import router as budgets_router
@@ -20,6 +22,9 @@ from app.api.transactions import router as transactions_router
 from app.config import get_settings
 
 logger = logging.getLogger("app.main")
+
+# 前端构建产物：frontend/dist（`cd frontend && npm run build`）
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
 def _configure_logging(level: str) -> None:
@@ -91,6 +96,12 @@ def create_app() -> FastAPI:
             status_code=exc.status_code,
             content={"code": exc.code, "message": exc.message, "trace_id": trace_id},
         )
+
+    # 前端产物存在时托管到 /（hash 路由，无需 history fallback）。
+    # 注意：必须最后挂载，否则 "/" 会匹配掉之后注册的 /api/* 路由。
+    if FRONTEND_DIST.is_dir():
+        app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+        logger.info("已挂载前端构建产物：%s", FRONTEND_DIST)
 
     return app
 

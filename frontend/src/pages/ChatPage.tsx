@@ -68,6 +68,8 @@ export function ChatPage({ session }: { session: SessionState }) {
   const [error, setError] = useState<ApiError | null>(null)
   const [lastAttempt, setLastAttempt] = useState<{ text: string; imageId?: string } | null>(null)
   const [imageId, setImageId] = useState('')
+  const [imageName, setImageName] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [manualImageOpen, setManualImageOpen] = useState(false)
   const [hint, setHint] = useState('')
   const bottomRef = useRef<HTMLDivElement | null>(null)
@@ -99,6 +101,7 @@ export function ChatPage({ session }: { session: SessionState }) {
         })
         setSessionId(res.session_id)
         setImageId('')
+        setImageName('')
         const statuses: Record<number, CardStatus> = {}
         res.pending_actions.forEach((_, i) => {
           statuses[i] = 'pending'
@@ -222,23 +225,36 @@ export function ChatPage({ session }: { session: SessionState }) {
     setError(null)
     setHint('')
     setImageId('')
+    setImageName('')
     setInput('')
   }
 
   async function handleFile(file: File | undefined) {
     if (!file) return
     setHint('')
+    setUploading(true)
     try {
-      const id = await uploadReceipt(file)
-      setImageId(id)
-      setHint('图片已上传，发送消息时会带上 image_id。')
+      const uploaded = await uploadReceipt(file)
+      setImageId(uploaded.imageId)
+      setImageName(uploaded.filename || file.name)
+      setHint('小票已上传，发送消息后助手会识别并生成确认卡片。')
     } catch (err) {
       const apiError = toApiError(err)
       setHint(apiError.message)
-      setManualImageOpen(true)
+      // 只有接口不可用/网络异常时才提示手动输入兜底
+      if (apiError.code === 'OCR_UNAVAILABLE' || apiError.code === 'NETWORK_ERROR') {
+        setManualImageOpen(true)
+      }
     } finally {
+      setUploading(false)
       if (fileRef.current) fileRef.current.value = ''
     }
+  }
+
+  function clearUpload() {
+    setImageId('')
+    setImageName('')
+    setHint('')
   }
 
   return (
@@ -366,11 +382,11 @@ export function ChatPage({ session }: { session: SessionState }) {
             <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-ink/55">
               {imageId ? (
                 <span className="pill bg-jade-50 text-jade-700">
-                  附件 image_id：{imageId}
+                  附件：{imageName || '小票'} · {imageId.slice(0, 8)}…
                   <button
                     type="button"
                     className="ml-1 text-jade-700/60 hover:text-jade-700"
-                    onClick={() => setImageId('')}
+                    onClick={clearUpload}
                     aria-label="移除附件"
                   >
                     ×
@@ -384,7 +400,7 @@ export function ChatPage({ session }: { session: SessionState }) {
                     value={imageId}
                     onChange={(e) => setImageId(e.target.value)}
                   />
-                  <span className="text-ink/35">成员 4 提供上传接口后可自动获取</span>
+                  <span className="text-ink/35">上传接口异常时的兜底：粘贴已上传的 image_id</span>
                 </>
               )}
             </div>
@@ -400,15 +416,20 @@ export function ChatPage({ session }: { session: SessionState }) {
             <button
               type="button"
               className="btn-ghost !px-2.5"
-              title="上传小票 / 支付截图"
+              title="上传小票 / 支付截图（JPG/PNG/WEBP，≤10MB）"
+              disabled={uploading}
               onClick={() => fileRef.current?.click()}
             >
-              <PaperclipIcon />
+              {uploading ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink/20 border-t-jade-500" />
+              ) : (
+                <PaperclipIcon />
+              )}
             </button>
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp"
               className="hidden"
               onChange={(e) => void handleFile(e.target.files?.[0])}
             />
