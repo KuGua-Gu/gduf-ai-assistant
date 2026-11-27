@@ -98,7 +98,13 @@
     ├── agent-design.md             # Agent 设计文档（答辩用）
     ├── agent-slides.md             # PPT 大纲与演示脚本
     ├── integration-checklist.md    # 端到端联调清单
-    └── handoff-member3.md          # 成员 3 前端交接文档
+    ├── ocr-eval.md                 # OCR 评测口径与结果（成员 4）
+    ├── ocr-slides.md               # OCR 答辩提纲与演示脚本（成员 4）
+    ├── lessons-and-issues.md       # 问题与解决记录、未完成项
+    ├── handoff-member3.md          # 成员 3 前端交接文档
+    └── assets/                     # 答辩 PPT 与联调截图
+        ├── ocr-slides.pptx
+        └── ocr-integration.png
 ```
 
 前端页面已由成员 3 交付（`frontend/`，见 [`frontend/README.md`](frontend/README.md)）；OCR 已提供上传接口与视觉识别实现（未配置视觉模型时退回桩实现）；容器化由 `Dockerfile` 与 `docker-compose.yml` 提供。
@@ -279,6 +285,8 @@ python scripts/eval_ocr.py
 
 评测口径与当前结果见 [`docs/ocr-eval.md`](docs/ocr-eval.md)。
 
+前后端联调截图（真实浏览器上传 → 确认卡片 → 账单列表）：[`docs/assets/ocr-integration.png`](docs/assets/ocr-integration.png)。
+
 ## 测试
 
 ```bash
@@ -349,6 +357,8 @@ pytest tests/test_agent.py --live
 - OCR 评测口径与结果：[`docs/ocr-eval.md`](docs/ocr-eval.md)
 - OCR 答辩提纲（3 页 PPT + 演示脚本）：[`docs/ocr-slides.md`](docs/ocr-slides.md)
 - OCR 答辩 PPT（3 页，可并入团队 PPT）：[`docs/assets/ocr-slides.pptx`](docs/assets/ocr-slides.pptx)
+- 前后端联调截图（上传小票 → 确认卡片 → 入账）：[`docs/assets/ocr-integration.png`](docs/assets/ocr-integration.png)
+- 问题与解决记录、未完成项：[`docs/lessons-and-issues.md`](docs/lessons-and-issues.md)
 - 在线接口文档：启动后访问 `http://127.0.0.1:8000/docs`
 
 ## 密钥安全说明
