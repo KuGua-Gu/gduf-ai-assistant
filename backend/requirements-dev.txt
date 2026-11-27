@@ -1,0 +1,3 @@
+# 仅开发/生成样例时需要；运行服务不需要
+-r requirements.txt
+pillow>=10.0
